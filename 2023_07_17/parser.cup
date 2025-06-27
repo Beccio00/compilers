@@ -1,0 +1,84 @@
+import java_cup.runtime.*;
+import java.util.*;
+import java.io.*;
+
+init with {:
+	table = new HashMap<String, HashMap<String, Double>>();
+:};
+
+parser code {:
+	public HashMap<String, HashMap<String, Double>> table;
+	
+    public void syntax_error(Symbol current_symbol) {
+        StringBuffer m = new StringBuffer("Error");
+
+        if(current_symbol.left != -1) {
+            m.append(" in line " + (current_symbol.left + 1));
+            m.append(" in column " + (current_symbol.right + 1));
+        }
+        m.append(", symbol: " + current_symbol);
+        m.append(": Syntax Error");
+
+        System.err.println(m);
+    }
+	
+	public void report_error(String message, Object info) {
+        StringBuffer m = new StringBuffer(message);
+        if(info instanceof Symbol) {
+            if(((Symbol)info).left != 1 && ((Symbol)info).right != 1) {
+                if(((Symbol)info).left != -1 && ((Symbol)info).right != -1) {
+                    int line = (((Symbol)info).left) + 1;
+                    int column = (((Symbol)info).right) + 1;
+                    m.append(" (line " + line + " column " + column + ")");
+                }
+            }
+            System.err.println(m);
+        }
+    }
+
+    public Object stack(int position) {
+        return (((Symbol) stack.elementAt(tos + position)).value);
+    }
+:};
+
+action code {:
+
+:};
+
+terminal SEP, TOK1, TOK2, TOK3, S;
+//terminal String ID, QSTRING;
+//terminal Integer UINT;
+//terminal Double DOUBLE;
+//terminal Float REAL;
+
+non terminal prog;
+non terminal header;
+//non terminal HashMap ;
+//non terminal String ;
+//non terminal Integer ;
+//non terminal Boolean ;
+//non terminal Object[] ;
+//non terminal float ;
+
+//Precedences and associativities
+//lower precedences
+//precedence left OR;
+//precedence left AND;
+//precedence left NOT;
+//precedence left MIN, MAJ, MIN_EQ, EQ_MIN, MAJ_EQ, EQ_MAJ, EQ;
+//precedence left PLUS, MINUS;
+//precedence left STAR, DIV;
+//precedence left UMINUS;  //rules for negative numbers (if it is not specified, the numbers are unsigned)
+//higher precedences
+
+start with prog;
+
+prog ::= header SEP
+;
+
+//////////
+//HEADER
+//////////
+
+header ::=
+;

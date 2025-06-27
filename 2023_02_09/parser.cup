@@ -1,0 +1,187 @@
+import java_cup.runtime.*;
+import java.util.*;
+import java.io.*;
+
+init with {:
+	table = new HashMap<String, HashMap<String, Float>>();
+:};
+
+parser code {:
+	public HashMap<String, HashMap<String, Float>> table;
+	
+    public void syntax_error(Symbol current_symbol) {
+        StringBuffer m = new StringBuffer("Error");
+
+        if(current_symbol.left != -1) {
+            m.append(" in line " + (current_symbol.left + 1));
+            m.append(" in column " + (current_symbol.right + 1));
+        }
+        m.append(", symbol: " + current_symbol);
+        m.append(": Syntax Error");
+
+        System.err.println(m);
+    }
+	
+	public void report_error(String message, Object info) {
+        StringBuffer m = new StringBuffer(message);
+        if(info instanceof Symbol) {
+            if(((Symbol)info).left != 1 && ((Symbol)info).right != 1) {
+                if(((Symbol)info).left != -1 && ((Symbol)info).right != -1) {
+                    int line = (((Symbol)info).left) + 1;
+                    int column = (((Symbol)info).right) + 1;
+                    m.append(" (line " + line + " column " + column + ")");
+                }
+            }
+            System.err.println(m);
+        }
+    }
+
+    public Object stack(int position) {
+        return (((Symbol) stack.elementAt(tos + position)).value);
+    }
+:};
+
+action code {:
+
+:};
+
+terminal SEP, TOK1, TOK2, S, COL, SO, SC, CM, EURO, KG, DOT, UINT;
+terminal String QSTRING;
+//terminal Integer UINT;
+//terminal Double DOUBLE;
+terminal Float REAL;
+
+non terminal prog;
+non terminal header, food, recipes, tok2_list, food_category, optional_col;
+//non terminal HashMap ;
+//non terminal String ;
+//non terminal Integer ;
+//non terminal Boolean ;
+non terminal Object[] food_list;
+non terminal Float NT0, NT1, ingredient_list;
+
+//Precedences and associativities
+//lower precedences
+//precedence left OR;
+//precedence left AND;
+//precedence left NOT;
+//precedence left MIN, MAJ, MIN_EQ, EQ_MIN, MAJ_EQ, EQ_MAJ, EQ;
+//precedence left PLUS, MINUS;
+//precedence left STAR, DIV;
+//precedence left UMINUS;  //rules for negative numbers (if it is not specified, the numbers are unsigned)
+//higher precedences
+
+start with prog;
+
+prog ::= header SEP food SEP recipes
+;
+
+//////////
+//HEADER
+//////////
+
+header ::= tok2_list TOK1 tok2_list | TOK1 tok2_list | tok2_list TOK1
+;
+
+tok2_list ::= TOK2 TOK2 |tok2_list TOK2 
+;
+
+
+//////////
+//FOOD
+//////////
+
+
+food ::= | food food_category food_category  
+;
+
+food_category ::= QSTRING:food_category_name COL SO food_list:res SC S 
+    {:
+        parser.table.put(food_category_name, (HashMap)res[0]);
+        System.out.println("Less expensive: " + res[2] + " " + res[1] + "EURO/kg");
+        System.out.println("More expensive: " + res[4] + " " + res[3] + "EURO/kg");
+
+    :}
+;
+
+food_list ::= food_list:res CM QSTRING:food_name  COL REAL:price EURO
+                {:
+                    HashMap<String,Float> tab = new HashMap<String,Float>(); 
+                    tab.put(food_name, price);
+                    if((Float)price > (Float)res[1]) {
+                        res[1] = price;
+                        res[2] = food_name;
+                    }
+                    else if((Float)price < (Float)res[3]) {
+                        res[3] = price;
+                        res[4] = food_name;
+                    }
+
+                    res[0] = tab;
+
+                    RESULT = res;
+                :}
+            | QSTRING:food_name  COL REAL:price EURO
+            {:
+                Object[] res = new Object[5];
+                HashMap<String,Float> tab = new HashMap<String,Float>();
+                tab.put(food_name, price);
+                res[0] = (HashMap)tab;
+                res[1] = price;
+                res[2] = food_name;
+                res[3] = price;
+                res[4] = food_name;
+                RESULT = res;
+
+            :}
+;
+
+
+//////////
+//RECIPES
+//////////
+
+recipes ::= | recipes UINT:number QSTRING:recipe_name 
+                {:
+                System.out.println(recipe_name);
+                :}
+             optional_col ingredient_list:res S
+             {:
+                System.out.println("TOT: " + res + " EURO");
+             :}
+; 
+
+optional_col ::= | COL
+;
+
+ingredient_list ::= ingredient_list:sum NT1:number CM QSTRING:food_category_name DOT QSTRING:food_name REAL:weight KG 
+            {:
+                HashMap<String, Float> tab = (HashMap)parser.table.get(food_category_name);
+                Float kgprice = (Float)tab.get(food_name); 
+                Float res = kgprice + weight * number;
+                sum += res; 
+                System.out.println(food_category_name + " " + res + " EURO"); 
+                RESULT = sum;
+            :}
+            
+            | NT0:number QSTRING:food_category_name DOT QSTRING:food_name REAL:weight KG
+            {:
+                HashMap<String, Float> tab = (HashMap)parser.table.get(food_category_name);
+                Float kgprice = (Float)tab.get(food_name);
+                Float res = kgprice + weight * number; 
+                System.out.println(food_category_name + " " + res + " EURO"); 
+                RESULT = res;
+            :}
+            
+;
+
+NT0 ::= {:
+    RESULT = (Float)parser.stack(-2);
+:}
+;
+
+
+NT1 ::= {:
+    RESULT = (Float)parser.stack(-3);
+:}
+;

@@ -1,0 +1,218 @@
+/*************************
+ Parser
+**************************/
+
+import java_cup.runtime.*;
+import java.util.*;
+import java.io.*;
+
+
+init with {:
+	table = new HashMap<String, HashMap<String, Integer>>();
+:};
+
+parser code {:
+	public HashMap<String, HashMap<String, Integer>> table;
+	
+    public void syntax_error(Symbol current_symbol) {
+        StringBuffer m = new StringBuffer("Error");
+
+        if(current_symbol.left != -1) {
+            m.append(" in line " + (current_symbol.left + 1));
+            m.append(" in column " + (current_symbol.right + 1));
+        }
+        m.append(", symbol: " + current_symbol);
+        m.append(": Syntax Error");
+
+        System.err.println(m);
+    }
+	
+	public void report_error(String message, Object info) {
+        StringBuffer m = new StringBuffer(message);
+        if(info instanceof Symbol) {
+            if(((Symbol)info).left != 1 && ((Symbol)info).right != 1) {
+                if(((Symbol)info).left != -1 && ((Symbol)info).right != -1) {
+                    int line = (((Symbol)info).left) + 1;
+                    int column = (((Symbol)info).right) + 1;
+                    m.append(" (line " + line + " column " + column + ")");
+                }
+            }
+            System.err.println(m);
+        }
+    }
+
+    public Object stack(int position) {
+        return (((Symbol) stack.elementAt(tos + position)).value);
+    }
+:};
+
+action code {:
+
+:};
+
+
+terminal SEP, TOK1, TOK2, INTERR, INTERR_MIN, CM, RO, RC, DOT;
+terminal String QSTRING, NAME, END, OBJ, IS_TRUE, IS_FALSE, PRINT, N_MIN_EQ, MIN_EQ, AND, NOT, OR;
+terminal Integer UINT;
+//terminal Double DOUBLE;
+//terminal Float REAL;
+
+non terminal prog;
+non terminal header, tok2l_non_empty, tok2l_also_empty, object, objects, queries, query, print_function, print_true, print_false;
+non terminal HashMap attr_list;
+//non terminal String ;
+non terminal Integer obj_ref;
+non terminal Boolean bool_expr, NT0;
+//non terminal Object[] ;
+//non terminal float ;
+non terminal ArrayList<String> print_list;
+
+//Precedences and associativities
+//lower precedences
+precedence left OR;
+precedence left AND;
+precedence left NOT;
+//precedence left MIN, MAJ, MIN_EQ, EQ_MIN, MAJ_EQ, EQ_MAJ, EQ;
+//precedence left PLUS, MINUS;
+//precedence left STAR, DIV;
+//precedence left UMINUS;  //rules for negative numbers (if it is not specified, the numbers are unsigned)
+precedence left TOK2;
+
+//higher precedences
+
+start with prog;
+
+prog ::= header SEP objects SEP queries
+;
+
+//////////
+//HEADER
+//////////
+
+header ::= tok2l_non_empty TOK1 tok2l_also_empty 
+            | tok2l_also_empty TOK1 tok2l_non_empty
+            | tok2l_non_empty TOK1 tok2l_also_empty TOK1 tok2l_also_empty
+            | tok2l_also_empty TOK1 tok2l_non_empty TOK1 tok2l_also_empty
+            | tok2l_also_empty TOK1 tok2l_also_empty TOK1 tok2l_non_empty            
+;
+
+
+
+tok2l_non_empty ::= tok2l_non_empty TOK2 | TOK2
+;
+
+tok2l_also_empty ::= tok2l_also_empty TOK2 | 
+;
+
+//////////
+//OBJECT
+//////////
+
+objects ::= objects object object |
+            object object 
+;
+
+object ::= OBJ attr_list:list NAME QSTRING:name END
+        {:
+            parser.table.put(name, list);
+        :}
+;
+
+attr_list ::= attr_list:l CM QSTRING:attr_name UINT:attr_value
+            {:
+                l.put(attr_name, attr_value);
+                RESULT = l;
+            :}
+         | QSTRING:attr_name UINT:attr_value
+        {:
+            RESULT = new HashMap<String, Integer>();
+            RESULT.put(attr_name, attr_value); 
+        :}
+;
+
+//////////
+//QUERIES
+//////////
+
+queries ::= queries query | query 
+;
+
+
+query ::= INTERR bool_expr NT0 print_function INTERR_MIN
+;
+
+NT0 ::= 
+    {:
+    RESULT = (Boolean)parser.stack(0);
+:}
+;
+
+bool_expr ::= obj_ref:x MIN_EQ UINT:y {:
+        if(x.equals(y)) {
+            RESULT = true;
+        } else {            
+            RESULT = false;
+        }
+:}
+    
+  | obj_ref:x N_MIN_EQ UINT:y  
+  {:
+        if(!x.equals(y)) {
+            RESULT = true;
+        } else {
+            RESULT = false;
+        }
+:}                        
+  | bool_expr:a AND bool_expr:b     {:RESULT = a && b;:}
+  | bool_expr:a OR bool_expr:b      {:RESULT = a || b;:}
+  | RO bool_expr:a RC               {:RESULT = a;:}
+  | NOT bool_expr:a                 {:RESULT = !a;:}
+;
+
+obj_ref ::= QSTRING:obj_name DOT QSTRING:attr_name
+        {:
+             Integer value = parser.table.get(obj_name).get(attr_name);
+             RESULT = value;
+        :}
+;
+
+print_function ::= print_true print_false | print_false print_true | print_true | print_false
+;
+
+print_true ::= IS_TRUE print_list:list_str
+    {:
+        Boolean bool_expr = (Boolean)parser.stack(-3);
+        if (bool_expr == true) {
+            for (String str : list_str) {
+                System.out.println(str);
+            }
+        }
+    :}
+;
+
+print_false ::= IS_FALSE print_list:list_str
+    {:
+        Boolean bool_expr = (Boolean)parser.stack(-3);
+        if (bool_expr == false) {
+            for (String str : list_str) {
+                System.out.println(str);
+            }
+        }
+    :}
+;
+
+print_list ::=print_list:l PRINT QSTRING:print_str 
+    {:        
+        l.add(print_str);
+        RESULT = l;
+    :}
+    | PRINT QSTRING:print_str 
+    {:
+        ArrayList<String> list = new ArrayList<String>();
+        list.add(print_str);
+        RESULT = list;
+    :}
+;
+
+
+

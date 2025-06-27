@@ -1,0 +1,32 @@
+<++ header section ++>
+!1001;              // tk1
+$2025/07/02;        <++ tk2 ++>
+$2026/01/01:06:00;  // tk2
+?-121;              <++ tk1 ++>
+++++++
+<++ objects section ++>
+obj "weight" 3, "price" 4, "height" 5 name "pen" end
+obj "type" 2, "size" 4, "price" 10
+  name "clock"
+end
+++++
+<++ queries section ++>
+<++ true AND true = true ++>
+? "pen"."price" -eq 4 AND "clock"."price" -neq 12
+IS_TRUE
+    print "Correct prices"
+    print "ok"
+IS_FALSE
+    print "Not correct price"
+-?
+
+<++ NOT (true OR false) = NOT true = false ++>
+? NOT ( "clock"."size" -eq 4 OR "pen"."height" -eq 3 )
+IS_FALSE print "size check false"
+IS_TRUE print "size check true"
+-?
+
+<++ false ++>
+? "pen"."weight" -neq 3 
+IS_FALSE print "weight check false" 
+-?

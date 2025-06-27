@@ -1,0 +1,17 @@
+[++ Header section ++]
+A:!011101 ; [++ tok1 ++]
+C:11.70!@!!@@@!@!hello; [++ tok2 ++]
+B:!07:22:30 ; [++ tok1 ++]
+A:!0000; [++ tok1 ++]
+C:value!!EVENWORD ; [++ tok2 ++]
+****
+[++ Athletes section ++]
+"Gabriele" : "speed" 1.05+1.0*.05, "resistance" (.5+0.5)*1.2;[++ "speed" 1.1 "resistance" 1.20 ++]
+"George" : "speed" 1.0, "technique" 1.10, "resistance" 0.9;
+"Armando" : "speed" 1.0, "technique" 1.10;
+******
+[++ Evaluation section ++]
+[++ 2.0*10.0*1.1*2.0 + 2.0*20.0*1.20*1.0 = 44.0 + 48.0 = 92.0 ++]
+"Gabriele" 2.0 POINTS : 10.0 "speed" HIGH, 20.0 "resistance" MEDIUM;
+[++ 1.5*20.0*1.10*1.0 + 1.5*30.0*1.0*1.0 + 0.0 = 33.0 + 45.0 + 0.0 = 78.0 ++]
+"George" 1.5 : 20.0 "technique" MEDIUM, 30.0 "speed" MEDIUM, 30.0 "resistance" LOW;

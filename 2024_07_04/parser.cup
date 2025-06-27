@@ -1,0 +1,224 @@
+import java_cup.runtime.*;
+import java.util.*;
+import java.io.*;
+
+init with {:
+	table = new HashMap<String, HashMap<String, Float>>();
+:};
+
+parser code {:
+	public HashMap<String, HashMap<String, Float>> table;
+	
+    public void syntax_error(Symbol current_symbol) {
+        StringBuffer m = new StringBuffer("Error");
+
+        if(current_symbol.left != -1) {
+            m.append(" in line " + (current_symbol.left + 1));
+            m.append(" in column " + (current_symbol.right + 1));
+        }
+        m.append(", symbol: " + current_symbol);
+        m.append(": Syntax Error");
+
+        System.err.println(m);
+    }
+	
+	public void report_error(String message, Object info) {
+        StringBuffer m = new StringBuffer(message);
+        if(info instanceof Symbol) {
+            if(((Symbol)info).left != 1 && ((Symbol)info).right != 1) {
+                if(((Symbol)info).left != -1 && ((Symbol)info).right != -1) {
+                    int line = (((Symbol)info).left) + 1;
+                    int column = (((Symbol)info).right) + 1;
+                    m.append(" (line " + line + " column " + column + ")");
+                }
+            }
+            System.err.println(m);
+        }
+    }
+
+    public Object stack(int position) {
+        return (((Symbol) stack.elementAt(tos + position)).value);
+    }
+:};
+
+action code {:
+
+:};
+
+terminal SEP, TOK1, TOK2, S, PLUS, MINUS, STAR, DIV, CM, COL, RO, RC;
+terminal String POINT, LOW, MEDIUM, HIGH, QSTRING;
+//terminal Integer UINT;
+//terminal Double DOUBLE;
+terminal Float REAL;
+
+non terminal prog;
+non terminal header, tok2_list, even_tok2_list, tok1_list, athletes, athlete, evaluation, eval_list, eval;
+non terminal HashMap attr, list_attr;
+//non terminal String ;
+//non terminal Integer ;
+//non terminal Boolean ;
+//non termimal Object[] ;
+non terminal Float expr, score, val, val_list ;
+
+//Precedences and associativities
+//lower precedences
+//precedence left OR;
+//precedence left AND;
+//precedence left NOT;
+//precedence left MIN, MAJ, MIN_EQ, EQ_MIN, MAJ_EQ, EQ_MAJ, EQ;
+precedence left PLUS, MINUS;
+precedence left STAR, DIV;
+//precedence left UMINUS;  //rules for negative numbers (if it is not specified, the numbers are unsigned)
+//higher precedences
+
+start with prog;
+
+prog ::= header SEP athletes SEP evaluation
+;
+
+//////////
+//HEADER
+//////////
+
+header ::= TOK1 tok2_list TOK1 tok2_list TOK1 tok2_list | even_tok2_list tok1_list 
+;
+
+tok2_list ::= tok2_list TOK2 | 
+;
+
+even_tok2_list ::= even_tok2_list TOK2 TOK2 | TOK2 TOK2 TOK2 TOK2 
+;
+
+tok1_list ::= TOK1 TOK1 TOK1 TOK1 | TOK1 TOK1 TOK1 TOK1 TOK1 TOK1 TOK1 TOK1 TOK1 TOK1 TOK1 TOK1 TOK1
+;
+
+
+//////////
+//ATHLETES
+//////////
+
+athletes ::= athletes athlete athlete | athlete athlete athlete  
+;
+
+athlete ::= QSTRING:name COL list_attr:tab S
+;
+
+list_attr ::= list_attr:prev CM attr:tab
+            {:
+                String name = (String)parser.stack(-4); 
+                HashMap<String, Float> current = parser.table.get(name);
+                
+                if (current == null) {
+                    current = new HashMap<String, Float>();
+                }
+                
+                current.putAll(tab);
+                parser.table.put(name, current);
+                
+                prev.putAll(tab);
+                RESULT = prev;
+            :}
+         | attr:tab 
+            {:
+                String name = (String)parser.stack(-3);
+                parser.table.put(name, tab);
+                RESULT = tab;
+            :}
+;
+
+attr ::= QSTRING:attr expr:v
+	{:
+		RESULT = new HashMap<String, Float>();
+        RESULT.put(attr, v);	
+	:} 
+;
+
+expr ::= expr:x MINUS expr:y
+	{:
+		RESULT = x-y;	
+	:}
+	| expr:x PLUS expr:y
+	{:
+		RESULT = x+y;	
+	:}
+	| expr:x STAR expr:y
+	{:
+		RESULT = x*y;	
+	:}
+	| expr:x DIV expr:y
+	{:
+		RESULT = x/y;	
+	:}
+	| RO expr:x RC
+	{:
+		RESULT = x;	
+	:}
+	| REAL:x
+	{:
+		RESULT = x;	
+	:}
+;
+
+
+////////////
+//EVALUATION
+////////////
+
+evaluation ::= eval_list |
+;
+eval_list ::= eval_list eval | eval
+;
+
+eval ::= QSTRING:name REAL:mult POINT COL val_list:sum S
+      {:
+            System.out.println(name + ": " + sum + " POINTS");
+        :}
+    | QSTRING:name REAL:mult COL  val_list:sum S
+    {:
+        System.out.println(name + ": " + sum + " POINTS");
+    :}
+;
+
+val_list ::= val_list:prev CM val:cur           
+         {:
+              RESULT = prev + cur;
+           :}
+         | val:v
+           {:
+              RESULT = v;
+           :}
+;
+
+val ::= REAL:value QSTRING:attr_name score:s 
+      {:
+          String name = (String)parser.stack(-5);
+          Float mult = (Float)parser.stack(-4);
+          
+          HashMap<String, Float> athlete_attrs = parser.table.get(name);
+          Float expr_value = athlete_attrs.get(attr_name);
+          
+          Float result = mult * value * expr_value * s;
+          
+          System.out.println("  " + attr_name + ": " + mult + " * " + value + " * " + expr_value + " * " + s + " = " + result);
+                           
+          RESULT = result;                 
+    :}
+;
+
+score ::= LOW 
+        {:
+            RESULT = 0.0f;
+        :} 
+        | MEDIUM 
+        {:
+            RESULT = 1.0f;
+        :} 
+
+        | HIGH
+        {:
+            RESULT = 2.0f;
+        :} 
+
+;
+
+

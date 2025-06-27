@@ -1,0 +1,179 @@
+import java_cup.runtime.*;
+import java.util.*;
+import java.io.*;
+
+init with {:
+	table = new HashMap<String, Boolean>();
+:};
+
+parser code {:
+	public HashMap<String, Boolean> table;
+    public void syntax_error(Symbol current_symbol) {
+        StringBuffer m = new StringBuffer("Error");
+
+        if(current_symbol.left != -1) {
+            m.append(" in line " + (current_symbol.left + 1));
+            m.append(" in column " + (current_symbol.right + 1));
+        }
+        m.append(", symbol: " + current_symbol);
+        m.append(": Syntax Error");
+
+        System.err.println(m);
+    }
+	
+	public void report_error(String message, Object info) {
+        StringBuffer m = new StringBuffer(message);
+        if(info instanceof Symbol) {
+            if(((Symbol)info).left != 1 && ((Symbol)info).right != 1) {
+                if(((Symbol)info).left != -1 && ((Symbol)info).right != -1) {
+                    int line = (((Symbol)info).left) + 1;
+                    int column = (((Symbol)info).right) + 1;
+                    m.append(" (line " + line + " column " + column + ")");
+                }
+            }
+            System.err.println(m);
+        }
+    }
+
+    public Object stack(int position) {
+        return (((Symbol) stack.elementAt(tos + position)).value);
+    }
+:};
+
+action code {:
+
+:};
+
+//////////////////////////////////
+/////// TERMINAL SYMBOLS /////////
+//////////////////////////////////
+
+terminal SEP, TOK1, TOK2, TOK3;
+
+// types
+terminal String QUOTEDS;
+terminal String VAR;
+
+// symbols
+terminal PV;
+terminal COMMA;
+
+// brackets
+terminal RO, RC; // ()
+terminal SO, SC; // []
+
+terminal CMP, WITH, PRINT, FZ_AND;
+terminal AND, OR, NOT, TRUE, FALSE, EQ;
+
+
+non terminal prog;
+non terminal header, tok13l, commands, command, command_list, assignment, cmp, action_list ;
+//non terminal HashMap ;
+// non terminal String ID;
+//non terminal Integer ;
+non terminal Boolean bool_expr, fz_and;
+//non terminal Object[] ;
+//non terminal float ;
+non terminal ArrayList bool_list;
+
+//Precedences and associativities
+//lower precedences
+precedence left OR;
+precedence left AND;
+precedence left NOT;
+//precedence left MIN, MAJ, MIN_EQ, EQ_MIN, MAJ_EQ, EQ_MAJ, EQ;
+//precedence left PLUS, MINUS;
+//precedence left STAR, DIV;
+//precedence left UMINUS;  //rules for negative numbers (if it is not specified, the numbers are unsigned)
+//higher precedences
+
+start with prog;
+
+prog ::= header SEP commands
+;
+
+//////////
+//HEADER
+//////////
+
+header ::= tok13l TOK2 tok13l 
+        | tok13l TOK2 tok13l TOK2 tok13l 
+        | tok13l TOK2 tok13l TOK2 tok13l TOK2 tok13l TOK2 tok13l 
+;
+
+tok13l ::= tok13l TOK1 | tok13l TOK3 | TOK1 | TOK3
+;
+
+//////////
+//COMMAND
+//////////
+
+commands ::= command_list | 
+;
+
+command_list ::= command_list command command | command command 
+;
+
+command ::= assignment | cmp 
+;
+
+assignment ::= VAR:var EQ bool_expr:res
+    {:
+        parser.table.put(var, res);  
+        System.out.println(var + " " + res);  
+    :}
+;
+
+cmp ::= CMP bool_expr action_list
+;
+
+action_list ::= WITH bool_expr:b_a SO PRINT RO QUOTEDS:string RC PV SC
+                {:
+                    Boolean b_expr = (Boolean)parser.stack(-8);
+                    if (b_expr == b_a) {
+                        System.out.println(string);
+                    }
+
+          
+                :}
+                | action_list WITH bool_expr:b_a SO PRINT RO QUOTEDS:string RC PV SC
+                {:
+                    Boolean b_expr = (Boolean)parser.stack(-9);
+                    if (b_expr == b_a) {
+                        System.out.println(string);
+                    }
+                :}
+;  
+
+
+bool_expr ::= TRUE {: RESULT = true; :} | FALSE {: RESULT = false; :} |
+            bool_expr:x AND bool_expr:y {: RESULT = x && y; :} |
+            bool_expr:x OR bool_expr:y {: RESULT = x || y; :}  |
+            NOT bool_expr:x {: RESULT = !x; :} |
+            RO bool_expr:x RC {: RESULT = x; :} |
+            VAR:var {: RESULT = (Boolean)parser.table.get(var); :} |
+            fz_and:x {: RESULT = x; :} 
+;
+
+fz_and ::= FZ_AND RO bool_list:list RC
+        {:  
+            Boolean result = true;
+            for(Boolean e : list) {
+                result = result && e;
+            }
+
+            RESULT = result;
+        :}
+;
+
+bool_list ::= bool_expr:e {:
+                RESULT = new ArrayList<Boolean>();
+                RESULT.add(e);
+            :}
+            | bool_list:l COMMA bool_expr:e
+            {:
+                l.add(e);
+                RESULT = l;
+            :}
+;
+
