@@ -134,7 +134,7 @@ attr_list ::= attr_list:l CM QSTRING:attr_name UINT:attr_value
 //QUERIES
 //////////
 
-queries ::= queries query | query 
+queries ::= | queries query    
 ;
 
 
