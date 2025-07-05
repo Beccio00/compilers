@@ -7,7 +7,7 @@ Every directory contains a mini compiler, each one with a specific use case.
 ## Build Process
 Fistly it needed the installation of jflex and java_cup you can find the guide installation here https://www.skenz.it/compilers.
 
-I report a usefull command to execution only linux commands.
+Here are some useful commands that can be executed only on Linux.
 
 ### Step-by-step compilation:
 
